@@ -1,0 +1,39 @@
+# ---- secrets ----
+.env
+firmware/doorbell_cam/secrets.h
+*.key.json
+*service-account*
+firebase/google-services.json
+app/android/app/google-services.json
+
+# ---- toolchains / heavy artifacts (setup downloads these) ----
+/tools/
+/flutter/
+
+# ---- python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- node ----
+node_modules/
+webui/dist/
+
+# ---- data ----
+data/
+!data/.gitkeep
+
+# ---- flutter / android build output ----
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.flutter-plugins*
+**/Flutter/ephemeral/
+
+# ---- misc ----
+*.log
+.DS_Store
+Thumbs.db
