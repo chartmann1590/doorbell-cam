@@ -1,0 +1,23 @@
+name: doorbellcam_app
+description: DoorbellCam companion app — live view, alerts and camera settings.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  web_socket_channel: ^3.0.1
+  shared_preferences: ^2.3.3
+  flutter_local_notifications: ^17.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
