@@ -130,18 +130,37 @@ async def camera_watchdog() -> None:
         with state.state_lock:
             online = (time.time() - state.state["last_frame_ts"]) < 15
         state.state["camera_online"] = online
-        if not online:
-            log.info("Camera offline — rediscovering…")
+        if online:
+            continue
+
+        client_alive = bool(mjpeg and mjpeg._thread and mjpeg._thread.is_alive())
+        if client_alive and cam_ip:
+            # client thread runs but yields no frames — camera likely rebooted
+            # into the same IP; recycle the client so it reconnects.
+            log.info("Stream silent — recycling stream client for %s", cam_ip)
+            mjpeg.stop()
+            mjpeg = None
+
+        log.info("Camera offline — rediscovering…")
+        try:
             ip = await asyncio.to_thread(discover_camera)
-            if ip and ip != cam_ip:
-                cam_ip = ip
-                state.state["camera_ip"] = ip
-                mjpeg.stop()
-                mjpeg = MjpegClient(ip, on_frame=on_frame)
-                mjpeg.start()
-            elif ip and mjpeg is None:
-                mjpeg = MjpegClient(ip, on_frame=on_frame)
-                mjpeg.start()
+        except Exception:  # noqa: BLE001
+            log.exception("rediscovery failed")
+            continue
+        if not ip:
+            continue
+
+        if mjpeg is None:
+            cam_ip = ip
+            state.state["camera_ip"] = ip
+            mjpeg = MjpegClient(ip, on_frame=on_frame)
+            mjpeg.start()
+        elif ip != cam_ip:
+            cam_ip = ip
+            state.state["camera_ip"] = ip
+            mjpeg.stop()
+            mjpeg = MjpegClient(ip, on_frame=on_frame)
+            mjpeg.start()
 
 
 async def doorbell_poller() -> None:

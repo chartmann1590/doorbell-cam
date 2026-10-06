@@ -53,13 +53,13 @@
 #endif
 
 WebServer server(80);
-WebServer streamServer(81);
 Preferences prefs;
 
 bool camOk = false;
 volatile bool doorbellPressed = false;
 unsigned long lastBtnMs = 0;
 uint32_t frameCount = 0;
+uint32_t streamClients = 0;   // diagnostic: total clients served by the task
 unsigned long bootMs = 0;
 
 // ------------------------------------------------------------------ helpers
@@ -259,6 +259,7 @@ static void handleStatus() {
     "\"xclk\":" + String(s->xclk_freq_hz / 1000000) + ","
     "\"doorbell\":" + String(doorbellPressed ? 1 : 0) + ","
     "\"frames\":" + String(frameCount) + ","
+    "\"stream_clients\":" + String(streamClients) + ","
     "\"rssi\":" + String(WiFi.RSSI()) + ","
     "\"width\":" + String(fw) + ","
     "\"height\":" + String(fh) +
@@ -298,7 +299,7 @@ static void handleControl() {
 
 static void handleCapture() {
   if (!camOk) { server.send(503, "text/plain", "camera unavailable"); return; }
-  camera_fb_t* fb = esp_camera_fb_get();
+  camera_fb_t* fb = fbTake();
   if (!fb) { server.send(500, "text/plain", "capture failed"); return; }
   server.sendHeader("Content-Disposition", "inline; filename=capture.jpg");
   server.send_P(200, "image/jpeg", (const char*)fb->buf, fb->len);
@@ -310,32 +311,62 @@ static void handleDoorbell() {
   server.send(200, "application/json", json);
 }
 
-// MJPEG stream handler (served on port 81 like the reference CameraWebServer)
-static void mjpegHandler() {
-  WiFiClient client = streamServer.client();
-  if (!client) return;
-  if (!camOk) { client.stop(); return; }
+// ------------------------------------------------------------------ stream task
+// The MJPEG stream runs in its own FreeRTOS task pinned to core 0 so that a
+// long-lived stream client (the hub holds one permanently) never starves the
+// control HTTP server running in loop() on core 1.
+static SemaphoreHandle_t camMutex;
+static TaskHandle_t streamTaskHandle;
 
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: multipart/x-mixed-replace; boundary=doorbellframe");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println("Cache-Control: no-store");
-  client.println();
+static camera_fb_t* fbTake() {
+  xSemaphoreTake(camMutex, portMAX_DELAY);
+  camera_fb_t* fb = esp_camera_fb_get();
+  xSemaphoreGive(camMutex);
+  return fb;
+}
 
-  unsigned long last = millis();
-  while (client.connected() && millis() - last < 1000) {
-    camera_fb_t* fb = esp_camera_fb_get();
-    if (!fb) break;
-    frameCount++;
-    last = millis();
-    client.printf("--doorbellframe\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
-    size_t written = client.write(fb->buf, fb->len);
-    esp_camera_fb_return(fb);
-    if (written == 0) break;
-    // ~15 fps cap keeps the ESP32 stable with 2 frames buffers
-    delay(60);
+static void streamTaskFn(void*) {
+  WiFiServer streamSrv(81);
+  streamSrv.setNoDelay(true);
+  streamSrv.begin();
+  Serial.println("[Stream] task on core 0, port 81");
+
+  for (;;) {
+    // accept() returns a pending connection regardless of data; available()
+    // would require the client to have sent bytes first.
+    WiFiClient client = streamSrv.accept();
+    if (!client) {
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+    if (!camOk) { client.stop(); continue; }
+
+    client.setNoDelay(true);
+    client.setConnectionTimeout(2000);  // SO_SNDTIMEO: writes fail fast on zombies
+    streamClients++;
+
+    client.print("HTTP/1.1 200 OK\r\n"
+                 "Content-Type: multipart/x-mixed-replace; boundary=doorbellframe\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
+                 "Cache-Control: no-store\r\n\r\n");
+
+    unsigned long started = millis();
+    while (client.connected()) {
+      // Rotate the single stream slot: a stalled/zombie client (hub restart,
+      // lost TCP teardown) must never wedge the stream forever.
+      if (millis() - started > 30000) break;
+      camera_fb_t* fb = fbTake();
+      if (!fb) break;
+      frameCount++;
+      client.printf("--doorbellframe\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
+      size_t written = client.write(fb->buf, fb->len);
+      esp_camera_fb_return(fb);
+      if (written == 0) break;
+      vTaskDelay(pdMS_TO_TICKS(100));  // ~10 fps at SVGA keeps control paths snappy
+    }
+    client.stop();
+    vTaskDelay(pdMS_TO_TICKS(100));    // let the next queued client connect
   }
-  client.stop();
 }
 
 // ------------------------------------------------------------------ setup
@@ -355,6 +386,7 @@ void setup() {
   prefs.begin("doorbellcam", false);
 
   camOk = initCamera();
+  camMutex = xSemaphoreCreateMutex();
 
   if (!connectWiFi()) {
     Serial.println("[WiFi] Could not connect — starting setup AP mode");
@@ -366,6 +398,13 @@ void setup() {
 
   Serial.printf("[WiFi] Connected: %s  RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
   blinkStatus(2);
+
+  // Stream task only after the WiFi stack is up — starting it earlier asserts
+  // inside lwIP (xQueueSemaphoreTake) because the TCP/IP queue isn't ready.
+  if (camOk) {
+    xTaskCreatePinnedToCore(streamTaskFn, "stream", 8192, NULL, 1,
+                            &streamTaskHandle, 0);   // core 0; loop runs on core 1
+  }
 
   // mDNS + service advertisement for auto-discovery
   if (MDNS.begin(CAMERA_NAME)) {
@@ -389,11 +428,8 @@ void setup() {
   });
   server.begin();
 
-  streamServer.on("/api/stream", HTTP_GET, mjpegHandler);
-  streamServer.begin();
-
   bootMs = millis();
-  Serial.println("[HTTP] Ready: /api/whoami  /status  /control  /capture  :81/api/stream");
+  Serial.println("[HTTP] Ready: /api/whoami  /status  /control  /capture  :81/api/stream (task)");
 }
 
 void loop() {

@@ -19,7 +19,20 @@ from .config import settings
 log = logging.getLogger("doorbell.discovery")
 
 WHOAMI_MARKER = '"product": "doorbellcam"'  # matched loosely below
-PROBE_TIMEOUT = 0.35
+PROBE_TIMEOUT = 1.2   # the ESP32's single-core server can be slow; 0.35s was too tight
+
+
+def _whoami_ok(ip: str, port: int = 80) -> bool:
+    for _ in range(2):   # first try often lands while the camera is busy
+        try:
+            r = requests.get(f"http://{ip}:{port}/api/whoami",
+                             timeout=PROBE_TIMEOUT)
+            if r.status_code == 200:
+                text = r.text.replace(" ", "")
+                return '"product":"doorbellcam"' in text
+        except Exception:  # noqa: BLE001
+            pass
+    return False
 
 
 class _Listener:
@@ -42,17 +55,6 @@ class _Listener:
         pass
 
 
-def _whoami_ok(ip: str, port: int = 80) -> bool:
-    try:
-        r = requests.get(f"http://{ip}:{port}/api/whoami", timeout=PROBE_TIMEOUT)
-        if r.status_code == 200:
-            text = r.text.replace(" ", "")
-            return '"product":"doorbellcam"' in text
-    except Exception:  # noqa: BLE001
-        pass
-    return False
-
-
 def _local_subnet() -> str:
     if settings.LOCAL_SUBNET:
         return settings.LOCAL_SUBNET
@@ -72,10 +74,19 @@ def _probe_subnet() -> Optional[str]:
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=64) as ex:
-        for ip in ex.map(_whoami_ok, hosts):
-            if ip:
+        # _whoami_ok returns a bool; zip it with the host list to get the IP
+        for ok, ip in zip(ex.map(_whoami_ok, hosts), hosts):
+            if ok:
                 return ip
     return None
+
+
+def _valid_ipv4(candidate) -> Optional[str]:
+    """Guard against non-string/boolean leaks from discovery sources."""
+    try:
+        return str(ipaddress.IPv4Address(candidate))
+    except Exception:
+        return None
 
 
 def discover_camera(allow_subnet_scan: bool = True) -> Optional[str]:
@@ -90,7 +101,7 @@ def discover_camera(allow_subnet_scan: bool = True) -> Optional[str]:
             time.sleep(0.2)
         zc.close()
         if listener.found_ip and _whoami_ok(listener.found_ip):
-            return listener.found_ip
+            return _valid_ipv4(listener.found_ip) or listener.found_ip
     except Exception as e:  # noqa: BLE001
         log.warning("mDNS browse failed: %s", e)
 
@@ -100,7 +111,7 @@ def discover_camera(allow_subnet_scan: bool = True) -> Optional[str]:
             ip = socket.gethostbyname(host)
             if _whoami_ok(ip):
                 log.info("Resolved %s -> %s", host, ip)
-                return ip
+                return _valid_ipv4(ip) or ip
         except Exception:  # noqa: BLE001
             pass
 
@@ -110,7 +121,7 @@ def discover_camera(allow_subnet_scan: bool = True) -> Optional[str]:
             ip = _probe_subnet()
             if ip:
                 log.info("Subnet scan found camera at %s", ip)
-                return ip
+                return _valid_ipv4(ip) or ip
         except Exception as e:  # noqa: BLE001
             log.warning("Subnet scan failed: %s", e)
 
