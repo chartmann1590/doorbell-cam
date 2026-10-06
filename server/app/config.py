@@ -47,8 +47,9 @@ class Settings:
     COOLDOWN_SECONDS = _get_int("COOLDOWN_SECONDS", 15)
     FACE_MATCH_THRESHOLD = _get_float("FACE_MATCH_THRESHOLD", 0.42)
 
-    # Models / data paths
-    MODELS_DIR = Path(_get("MODELS_DIR", "./tools/models"))
+    # Models / data paths (anchor relative paths to the project root, not CWD)
+    _models_raw = Path(_get("MODELS_DIR", "tools/models"))
+    MODELS_DIR = _models_raw if _models_raw.is_absolute() else ROOT / _models_raw
     DATA_DIR = ROOT / "data"
     SNAPSHOTS_DIR = DATA_DIR / "snapshots"
     DB_PATH = str(DATA_DIR / "doorbell.db")
