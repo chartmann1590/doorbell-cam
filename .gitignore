@@ -19,6 +19,10 @@ venv/
 # ---- node ----
 node_modules/
 webui/dist/
+webui/tsconfig.app.tsbuildinfo
+
+# ---- app state ----
+.freebuff/
 
 # ---- data ----
 data/

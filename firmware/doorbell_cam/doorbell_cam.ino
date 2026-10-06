@@ -184,6 +184,9 @@ static bool initCamera() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000;   // 10 MHz: clones often fail SCCB probe at 20 MHz
   config.pixel_format = PIXFORMAT_JPEG;
+  // LATEST: keep capturing continuously so fb_get returns instantly (~4 fps
+  // stream). WHEN_EMPTY saves idle power but fb_get then blocks ~2.4 s per
+  // frame waiting for a fresh capture — far too slow for motion detection.
   config.grab_mode = CAMERA_GRAB_LATEST;
   config.fb_location = CAMERA_FB_IN_PSRAM;
 
@@ -325,6 +328,13 @@ static camera_fb_t* fbTake() {
   return fb;
 }
 
+static void streamGreet(WiFiClient& c) {
+  c.print("HTTP/1.1 200 OK\r\n"
+          "Content-Type: multipart/x-mixed-replace; boundary=doorbellframe\r\n"
+          "Access-Control-Allow-Origin: *\r\n"
+          "Cache-Control: no-store\r\n\r\n");
+}
+
 static void streamTaskFn(void*) {
   WiFiServer streamSrv(81);
   streamSrv.setNoDelay(true);
@@ -344,17 +354,18 @@ static void streamTaskFn(void*) {
     client.setNoDelay(true);
     client.setConnectionTimeout(2000);  // SO_SNDTIMEO: writes fail fast on zombies
     streamClients++;
-
-    client.print("HTTP/1.1 200 OK\r\n"
-                 "Content-Type: multipart/x-mixed-replace; boundary=doorbellframe\r\n"
-                 "Access-Control-Allow-Origin: *\r\n"
-                 "Cache-Control: no-store\r\n\r\n");
+    streamGreet(client);
 
     unsigned long started = millis();
     while (client.connected()) {
       // Rotate the single stream slot: a stalled/zombie client (hub restart,
-      // lost TCP teardown) must never wedge the stream forever.
-      if (millis() - started > 30000) break;
+      // lost TCP teardown) must never wedge the stream forever. The hub
+      // reconnects immediately on this polite close.
+      // NOTE: do NOT call accept() here to "preempt" for a newer client —
+      // calling accept() while a connection is being served wedged lwIP on
+      // this core version (whole device went TCP-dead within minutes).
+      if (millis() - started > 90000) break;
+
       camera_fb_t* fb = fbTake();
       if (!fb) break;
       frameCount++;
@@ -362,7 +373,8 @@ static void streamTaskFn(void*) {
       size_t written = client.write(fb->buf, fb->len);
       esp_camera_fb_return(fb);
       if (written == 0) break;
-      vTaskDelay(pdMS_TO_TICKS(100));  // ~10 fps at SVGA keeps control paths snappy
+      vTaskDelay(pdMS_TO_TICKS(250));  // ~4 fps at SVGA: plenty for a doorbell,
+                                       // leaves the single core free for control
     }
     client.stop();
     vTaskDelay(pdMS_TO_TICKS(100));    // let the next queued client connect
@@ -371,7 +383,10 @@ static void streamTaskFn(void*) {
 
 // ------------------------------------------------------------------ setup
 void setup() {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);   // brownout off: WiFi TX spikes dip 3V3
+  // NOTE: the brownout detector stays ENABLED — a 3V3 sag then produces a
+  // clean ~10 s reboot (which the hub re-discovers) instead of risking a
+  // silent latch. (The silent hangs observed earlier were caused by calling
+  // accept() mid-serve in the stream task, not by brownout.)
 
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -460,6 +475,16 @@ void loop() {
       Serial.println("[WiFi] reconnecting…");
       WiFi.reconnect();
     }
+  }
+
+  // heartbeat: proves the app is alive and shows WiFi/stream state on the
+  // serial console — a stopped heartbeat means the chip itself died.
+  static unsigned long lastBeat = 0;
+  if (millis() - lastBeat > 30000) {
+    lastBeat = millis();
+    Serial.printf("[Beat] up=%lus rssi=%d frames=%u served=%u wifi=%d\n",
+                  millis() / 1000, WiFi.RSSI(), frameCount, streamClients,
+                  (int)WiFi.status());
   }
 
   // auto-clear doorbell flag after hub had a chance to poll it (2 s)

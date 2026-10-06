@@ -34,9 +34,12 @@ class MjpegClient:
         backoff = 1.0
         url = f"http://{self.ip}:81/api/stream"
         while not self._stop.is_set():
+            # The firmware rotates its single stream slot every 90s; requests'
+            # urllib3 raises on the server closing mid-response, which is our
+            # natural reconnect opportunity — cycle immediately with no backoff.
             try:
                 log.info("Connecting to stream %s", url)
-                with requests.get(url, stream=True, timeout=(3, 10)) as r:
+                with requests.get(url, stream=True, timeout=(3, 15)) as r:
                     r.raise_for_status()
                     backoff = 1.0
                     buf = bytearray()
@@ -49,6 +52,10 @@ class MjpegClient:
                             if frame is None:
                                 break
                             self.on_frame(frame)
+                    # server closed politely (rotation) -> reconnect right away
+                    log.info("Stream closed by camera — reconnecting immediately")
+                    self._stop.wait(0.4)
+                    backoff = 1.0
             except Exception as e:  # noqa: BLE001
                 log.warning("Stream error (%s); retrying in %.1fs", e, backoff)
                 self._stop.wait(backoff)

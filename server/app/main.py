@@ -37,6 +37,7 @@ mjpeg: MjpegClient = None
 zc: Zeroconf = None
 
 camera_control_lock = asyncio.Lock()
+_stream_recycled_at = 0.0
 
 
 # ------------------------------------------------------------------ lifespan
@@ -124,16 +125,43 @@ def on_frame(jpeg: bytes) -> None:
 
 async def camera_watchdog() -> None:
     """Re-discover the camera if the stream dies."""
-    global cam_ip, mjpeg
+    global cam_ip, mjpeg, _stream_recycled_at
     while True:
         await asyncio.sleep(10)
         with state.state_lock:
             online = (time.time() - state.state["last_frame_ts"]) < 15
-        state.state["camera_online"] = online
         if online:
+            state.state["camera_online"] = True
             continue
 
         client_alive = bool(mjpeg and mjpeg._thread and mjpeg._thread.is_alive())
+
+        # Stream silent — but is the camera itself still up? A quick /status
+        # probe separates "the stream client needs a fresh connection" (stay
+        # online, just recycle) from a genuine outage (full rediscovery).
+        reachable = False
+        if cam_ip:
+            try:
+                r = await asyncio.to_thread(
+                    requests.get, f"http://{cam_ip}/status", timeout=2.0)
+                reachable = r.ok
+            except Exception:  # noqa: BLE001
+                reachable = False
+
+        if reachable:
+            state.state["camera_online"] = True
+            # Recycle at most once per ~20 s so a genuinely wedged client is
+            # retried without hammering the camera's single-core web server.
+            if not client_alive or time.time() - _stream_recycled_at > 20:
+                log.info("Stream silent — recycling stream client for %s", cam_ip)
+                _stream_recycled_at = time.time()
+                if mjpeg:
+                    mjpeg.stop()
+                mjpeg = MjpegClient(cam_ip, on_frame=on_frame)
+                mjpeg.start()
+            continue
+
+        state.state["camera_online"] = False
         if client_alive and cam_ip:
             # client thread runs but yields no frames — camera likely rebooted
             # into the same IP; recycle the client so it reconnects.
@@ -150,15 +178,16 @@ async def camera_watchdog() -> None:
         if not ip:
             continue
 
-        if mjpeg is None:
+        # Recreate the client if it is missing, its thread has died, or the
+        # camera moved to a new IP. (A dead client with an unchanged IP used
+        # to fall through both branches and was never replaced.)
+        client_dead = (mjpeg is None
+                       or not (mjpeg._thread and mjpeg._thread.is_alive()))
+        if client_dead or ip != cam_ip:
+            if mjpeg:
+                mjpeg.stop()
             cam_ip = ip
             state.state["camera_ip"] = ip
-            mjpeg = MjpegClient(ip, on_frame=on_frame)
-            mjpeg.start()
-        elif ip != cam_ip:
-            cam_ip = ip
-            state.state["camera_ip"] = ip
-            mjpeg.stop()
             mjpeg = MjpegClient(ip, on_frame=on_frame)
             mjpeg.start()
 

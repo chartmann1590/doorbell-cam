@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, HubStatus, EventItem } from '../api'
+import MjpegStream from '../components/MjpegStream'
 
 export default function Dashboard({ status }: { status: HubStatus | null }) {
   const [recent, setRecent] = useState<EventItem[]>([])
-  const imgRef = useRef<HTMLImageElement>(null)
-  const [streamOk, setStreamOk] = useState(true)
+  const [manualRetry, setManualRetry] = useState(0)
 
   useEffect(() => {
     api.events(8).then(setRecent).catch(() => {})
@@ -29,24 +29,24 @@ export default function Dashboard({ status }: { status: HubStatus | null }) {
           </div>
         </div>
         <div className="relative aspect-[4/3] bg-black">
-          {streamOk ? (
-            <img
-              ref={imgRef}
-              src={api.liveStreamUrl}
-              alt="live stream"
-              className="h-full w-full object-contain"
-              onError={() => setStreamOk(false)}
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-center">
+          <MjpegStream
+            url={api.liveStreamUrl}
+            online={Boolean(status?.camera_online)}
+            key={`s${status?.camera_online}-${manualRetry}`}
+          />
+          {!status?.camera_online && (
+            <div className="absolute inset-0 grid place-items-center bg-black/70 text-center">
               <div>
                 <div className="text-5xl">📷</div>
-                <p className="mt-3 text-sm text-slate-400">Waiting for the camera stream…</p>
+                <p className="mt-3 text-sm text-slate-300">Waiting for the camera stream…</p>
                 <p className="text-xs text-slate-500">
                   The hub reconnects automatically. Check power + WiFi on the ESP32-CAM.
                 </p>
-                <button className="btn-ghost mt-4" onClick={() => setStreamOk(true)}>
-                  Retry
+                <button
+                  className="btn-ghost mt-4"
+                  onClick={() => setManualRetry(n => n + 1)}
+                >
+                  Retry now
                 </button>
               </div>
             </div>
@@ -84,7 +84,7 @@ export default function Dashboard({ status }: { status: HubStatus | null }) {
         <section className="card p-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-semibold text-white">Recent events</h3>
-            <button className="text-xs font-semibold text-accent-400 hover:underline" onClick={() => setStreamOk(true)}>
+            <button className="text-xs font-semibold text-accent-400 hover:underline" onClick={() => api.events(8).then(setRecent).catch(() => {})}>
               refresh
             </button>
           </div>
