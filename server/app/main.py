@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
 
     detector = Detector()
     detector.refresh_known_faces()
+    load_persisted_tuning()
 
     if cam_ip:
         mjpeg = MjpegClient(cam_ip, on_frame=on_frame)
@@ -297,10 +298,35 @@ async def faces_delete(name: str):
 
 
 # ------------------------------------------------------------------ settings
+def _coerce_tuning(key: str, value):
+    """Convert a stored string back to the type used in state.tuning."""
+    ref = state.tuning.get(key)
+    try:
+        if isinstance(ref, bool):
+            return str(value).lower() in ("1", "true", "yes", "on")
+        if isinstance(ref, float):
+            return float(value)
+        if isinstance(ref, int):
+            return int(float(value))
+    except (TypeError, ValueError):
+        pass
+    return value
+
+
+def load_persisted_tuning() -> None:
+    """Apply settings stored in SQLite to the live tuning dict (on boot)."""
+    for k, v in store.get_all_settings().items():
+        if k in state.tuning:
+            state.tuning[k] = _coerce_tuning(k, v)
+
+
 @app.get("/api/settings")
 async def get_settings():
     persisted = store.get_all_settings()
-    merged = {**{k: v for k, v in state.tuning.items()}, **persisted}
+    merged = dict(state.tuning)
+    for k, v in persisted.items():
+        if k in state.tuning:
+            merged[k] = _coerce_tuning(k, v)
     return merged
 
 
