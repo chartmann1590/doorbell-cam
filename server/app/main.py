@@ -65,10 +65,12 @@ async def lifespan(app: FastAPI):
 
     _register_mdns()
 
-    # background camera watchdog
+    # background camera watchdog + doorbell poller
     task = asyncio.create_task(camera_watchdog())
+    db_task = asyncio.create_task(doorbell_poller())
     yield
     task.cancel()
+    db_task.cancel()
     if mjpeg:
         mjpeg.stop()
     if zc:
@@ -140,6 +142,47 @@ async def camera_watchdog() -> None:
             elif ip and mjpeg is None:
                 mjpeg = MjpegClient(ip, on_frame=on_frame)
                 mjpeg.start()
+
+
+async def doorbell_poller() -> None:
+    """Poll the camera's doorbell button flag and fire events on presses.
+
+    The firmware latches a press (active-LOW GPIO13) and holds it ~2s, so a
+    1s poll cannot miss one. Cooldown is applied hub-side as well.
+    """
+    global cam_ip
+    last_press = 0.0
+    while True:
+        await asyncio.sleep(1)
+        if not cam_ip:
+            continue
+        try:
+            r = await asyncio.to_thread(requests.get,
+                                        f"http://{cam_ip}/api/doorbell",
+                                        timeout=1.0)
+            if r.ok and r.json().get("doorbell") == 1 and time.time() - last_press > 10:
+                last_press = time.time()
+                log.info("Doorbell pressed!")
+                snap = None
+                frame = state.get_frame()
+                if frame:
+                    ts = time.strftime("%Y%m%d-%H%M%S")
+                    path = settings.SNAPSHOTS_DIR / f"doorbell-{ts}.jpg"
+                    await asyncio.to_thread(
+                        cv2.imwrite, str(path), cv2.imdecode(
+                            np.frombuffer(frame, np.uint8), cv2.IMREAD_COLOR))
+                    snap = str(path.relative_to(settings.DATA_DIR))
+                event_id = store.add_event(kind="doorbell", confidence=1.0,
+                                           label="Doorbell pressed", snapshot=snap or "")
+                event = {"id": event_id, "kind": "doorbell",
+                         "label": "Doorbell pressed", "confidence": 1.0,
+                         "snapshot": snap or "", "ts": time.time(),
+                         "person_count": 0, "faces": []}
+                with state.state_lock:
+                    state.state["last_event"] = event
+                notify.push_event(event)
+        except Exception:  # noqa: BLE001
+            pass  # camera momentarily unreachable — next tick retries
 
 
 # ------------------------------------------------------------------ app

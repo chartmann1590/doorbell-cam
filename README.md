@@ -2,8 +2,9 @@
 
 A privacy-first, self-hosted smart doorbell: an AI-Thinker **ESP32-CAM** streams over your
 WiFi to a local **hub** (FastAPI + OpenCV) that detects **motion → people → faces**,
-stores **events with snapshots**, pushes **instant notifications** to a **Flutter** Android
-app and a polished **React** web dashboard — with zero cloud dependencies.
+accepts a **physical doorbell button** (GPIO13), stores **events with snapshots**,
+pushes **instant notifications** to a **Flutter** Android app and a polished **React**
+web dashboard — with zero cloud dependencies.
 
 ```
 ESP32-CAM ──WiFi──▶ Hub (this PC / NAS) ──WebSocket/REST──▶ Web dashboard + Android app
