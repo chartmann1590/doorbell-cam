@@ -81,6 +81,14 @@ export default function App() {
             <span className={`h-1.5 w-1.5 rounded-full ${wsOnline ? 'bg-emerald-400' : 'bg-amber-400'}`} />
             {wsOnline ? 'Live' : 'Reconnecting…'}
           </span>
+          <a
+            href="/downloads/app-release.apk"
+            download
+            title="Install the DoorbellCam Android app on your phone"
+            className="chip bg-accent-500/15 text-accent-400 hover:bg-accent-500/25"
+          >
+            📱 Get the app
+          </a>
         </div>
       </header>
 

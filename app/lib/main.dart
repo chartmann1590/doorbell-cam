@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'discovery.dart';
@@ -7,10 +9,12 @@ import 'screens/live.dart';
 import 'screens/events.dart';
 import 'screens/settings_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Notify.init();
   runApp(const DoorbellApp());
+  // Notification permission must not block first paint: awaiting it before
+  // runApp left the first launch stuck on the system dialog with no UI.
+  unawaited(Notify.init());
 }
 
 class DoorbellApp extends StatelessWidget {

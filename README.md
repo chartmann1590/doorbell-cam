@@ -45,6 +45,18 @@ flutter run                # from the app/ directory
 | `.env` | Your secrets (WiFi, serial port) — **gitignored** |
 | `.env.example` | Committed template with documentation |
 
+## Install the Android app
+Build it once (`cd app && flutter build apk --release`), then copy it where the
+hub serves it:
+
+```bash
+cp app/build/app/outputs/flutter-apk/app-release.apk data/downloads/
+```
+
+The dashboard header gets a "📱 Get the app" button that downloads
+`http://<hub-ip>:8765/downloads/app-release.apk` — open it on a phone and
+Android offers to install it.
+
 ## How auto-discovery works
 1. **Camera → hub:** firmware advertises `doorbellcam.local` (mDNS `_doorbellcam._tcp`).
    Hub tries mDNS browse → parallel HTTP probe of the /24 for `/api/whoami` → `.env` fallback.

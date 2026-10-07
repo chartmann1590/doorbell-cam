@@ -16,7 +16,8 @@ import cv2
 import numpy as np
 import requests
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 import zeroconf
 from zeroconf import ServiceInfo, Zeroconf
@@ -465,5 +466,19 @@ async def index():
 _dist = settings.ROOT / "webui" / "dist"
 if (_dist / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(_dist / "assets")), name="assets")
+
+
+@app.api_route("/downloads/app-release.apk", methods=["GET", "HEAD"])
+async def download_apk():
+    """Serve the built Android app so phones can install it from the dashboard.
+
+    Copy the release APK to data/downloads/app-release.apk (scripts/build_apk.py
+    does this) — the hub serves whatever is there at request time.
+    """
+    apk = settings.DATA_DIR / "downloads" / "app-release.apk"
+    if not apk.exists():
+        raise HTTPException(404, "APK not built yet — copy it to data/downloads/")
+    return FileResponse(str(apk), media_type="application/vnd.android.package-archive",
+                        filename="doorbellcam.apk")
 
 notify.init_fcm()
