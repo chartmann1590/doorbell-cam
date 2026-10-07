@@ -37,7 +37,7 @@ export default function Dashboard({ status }: { status: HubStatus | null }) {
             )}
           </div>
         </div>
-        <div className="relative aspect-[4/3] bg-black">
+        <div className="relative aspect-4/3 bg-black">
           <MjpegStream
             url={api.liveStreamUrl}
             online={Boolean(status?.camera_online)}
