@@ -1,3 +1,11 @@
+/**
+ * Faces page: enroll household members so alerts greet them by name.
+ *
+ * Upload a clear front-facing photo with a name — the hub computes an SFace
+ * embedding via POST /api/faces and matches future detections against it.
+ * Lists enrolled faces with creation dates and per-person remove buttons.
+ * Enrollment errors (no face found, bad image) surface inline.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, FaceItem } from '../api'
 

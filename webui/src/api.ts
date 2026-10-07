@@ -1,4 +1,13 @@
-// Typed API client for the DoorbellCam hub.
+/**
+ * Typed API client for the DoorbellCam hub.
+ *
+ * `api` wraps every REST endpoint the dashboard needs — status, events
+ * (list/delete/clear + snapshot image URLs), faces (list/enroll/delete),
+ * settings (get/patch), and camera controls proxied to the ESP32
+ * (`/api/camera/*`) — plus the `liveStreamUrl` MJPEG fan-out and the
+ * `wsUrl` WebSocket for push alerts. All JSON helpers throw on non-2xx so
+ * callers can `.catch()` to show offline states.
+ */
 
 export interface EventItem {
   id: number

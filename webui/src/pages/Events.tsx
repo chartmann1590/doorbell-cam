@@ -1,3 +1,11 @@
+/**
+ * Events page: filterable history grid with snapshot zoom + delete.
+ *
+ * Loads up to 200 events, filters by kind (all/face/person/motion/doorbell),
+ * renders snapshot thumbnails in a responsive grid, opens a full-size modal
+ * on click (with per-event delete), and offers a guarded "Clear all".
+ * Auto-refreshes every 4 s so new detections appear without reload.
+ */
 import { useCallback, useEffect, useState } from 'react'
 import { api, EventItem } from '../api'
 

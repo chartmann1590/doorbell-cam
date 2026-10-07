@@ -1,3 +1,9 @@
+/// Typed HTTP + WebSocket client for the DoorbellCam hub.
+///
+/// [HubClient] wraps every REST endpoint the app needs (status, events,
+/// settings, camera control, snapshots) plus the live `/api/ws` alert
+/// stream. [HubEvent] and [HubStatus] parse the hub's JSON into
+/// null-safe models. [defaultPort] (8765) matches the hub's `HUB_PORT`.
 import 'dart:async';
 import 'dart:convert';
 

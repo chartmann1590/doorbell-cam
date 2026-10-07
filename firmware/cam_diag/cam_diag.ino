@@ -1,4 +1,11 @@
-// Diagnostic: bit-bang SCCB (I2C) scan on the camera connector pins
+/* DoorbellCam hardware diagnostic: SCCB (camera I2C) bus scanner.
+ *
+ * Flash this sketch (instead of doorbell_cam.ino) when the main firmware
+ * reports "camera init FAILED" — it bit-bangs the SCCB bus on GPIO26 (SDA)
+ * / GPIO27 (SCL), probes every 7-bit address, and prints ACKs over serial
+ * at 115200 baud. Expect 0x30 (OV2640). No ACKs at all means the sensor is
+ * unseated, unpowered, or the board is a PDN-variant needing a pin tweak.
+ */
 #include <Arduino.h>
 
 #define SDA_PIN 26

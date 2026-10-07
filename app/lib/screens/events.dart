@@ -1,3 +1,8 @@
+/// Alerts tab: scrollable history of person / face / doorbell events.
+///
+/// Loads the latest 100 events from `GET /api/events`, shows each with its
+/// snapshot thumbnail, label, timestamp and confidence, and maps the event
+/// kind to a Material icon. Pull the refresh action to reload from the hub.
 import 'package:flutter/material.dart';
 
 import '../hub_client.dart';

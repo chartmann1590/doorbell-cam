@@ -1,88 +1,93 @@
-# DoorbellCam — ESP32-CAM wireless doorbell with person & face detection
+# 🔔 DoorbellCam
 
-A privacy-first, self-hosted smart doorbell: an AI-Thinker **ESP32-CAM** streams over your
-WiFi to a local **hub** (FastAPI + OpenCV) that detects **motion → people → faces**,
-accepts a **physical doorbell button** (GPIO13), stores **events with snapshots**,
-pushes **instant notifications** to a **Flutter** Android app and a polished **React**
-web dashboard — with zero cloud dependencies.
+**Know who's at your door — instantly, privately, with no monthly fees.**
 
-```
-ESP32-CAM ──WiFi──▶ Hub (this PC / NAS) ──WebSocket/REST──▶ Web dashboard + Android app
-```
+DoorbellCam is a smart video doorbell you own completely. A small camera by
+your front door watches for visitors, recognizes familiar faces, and sends
+an alert to your phone and computer the moment someone arrives. Everything
+runs inside your home — your video never goes to the cloud, and there is
+nothing to subscribe to.
 
-## What you need
-- ESP32-CAM (AI-Thinker) with the MB USB adapter (CH340)
-- A computer on the same WiFi network (Windows / macOS / Linux) — or any always-on box
-- Optional: Android phone for the companion app
+---
 
-## Quickstart
-```bash
-# 1. Configure (first time only)
-cp .env.example .env      # then edit: WiFi SSID/password, serial port
+## What it does for you
 
-# 2. One-time setup: toolchains, Python deps, models, firmware secrets
-python scripts/setup.py
+- 👀 **See who's there, live** — open the app or home dashboard for a real-time view from your front door.
+- 🔔 **Get a knock on your phone** — instant alerts for visitors, familiar faces, and doorbell rings, with a photo attached.
+- 🙂 **Greet people by name** — teach it once with a photo, and it tells you "Alice is at the door."
+- 🕘 **Never miss a visitor** — every visit is saved in a tidy history with photos, so you can catch up anytime.
+- 🔒 **Private by design** — video and face memories stay on a computer in your home. No accounts, no uploads, no fees.
 
-# 3. Flash the camera (ESP32-CAM plugged in via USB)
-python scripts/flash.py
+## What's in the box (what you'll need)
 
-# 4. Run the hub + dashboard  →  http://localhost:8765
-python scripts/run.py
-#    (or: cd server && uvicorn app.main:app --host 0.0.0.0 --port 8765)
+1. **A small doorbell camera** (about the size of a matchbox) by your door.
+2. **Your home computer** — it quietly does the watching and remembering. It just needs to stay on and connected to your WiFi.
+3. **Your phone** *(optional but recommended)* — for live view and instant alerts around the house.
 
-# 5. Android app
-flutter run                # from the app/ directory
-```
+> No smart-home hub, no subscriptions, no electrician. If you can plug in a
+> camera and open a web page, you can run DoorbellCam.
 
-## Layout
-| Path | What it is |
+## Getting started (5 minutes)
+
+1. **Plug in the camera** near your front door and power it on.
+2. **Start the home base** on your computer — one command, then leave it running.
+3. **Open your dashboard** in any browser at `http://localhost:8765` — you'll see your live door view.
+4. **Put the app on your phone** — tap **📱 Get the app** at the top of the dashboard to install it. It finds your home base by itself.
+5. **Teach it your household** — in the dashboard, open **Faces**, add a name and a clear photo for each person. Done — future alerts use their names.
+
+*Setting it up for someone else, or comfortable with technical guides? See
+[docs/TECHNICAL.md](docs/TECHNICAL.md) for the full maker's setup walkthrough.*
+
+## A day with DoorbellCam
+
+| Moment | What happens |
 |---|---|
-| `firmware/doorbell_cam` | Arduino sketch: WiFi, mDNS, MJPEG stream, camera settings API |
-| `server/app/` | FastAPI hub: discovery, stream fanout, detection, events, WebSocket, FCM |
-| `webui/` | React + Vite dashboard (live view, events, faces, settings) |
-| `app/` | Flutter companion app (auto-discovery, live view, notifications, settings) |
-| `scripts/` | `setup.py`, `flash.py`, `gen_secrets.py`, `run.py`, `enable_fcm.py` |
-| `.env` | Your secrets (WiFi, serial port) — **gitignored** |
-| `.env.example` | Committed template with documentation |
+| A visitor walks up | Your phone lights up: *"Person detected"* with a snapshot. |
+| A family member arrives | *"Alice is at the door"* — recognized by name. |
+| Someone rings the bell | *"Doorbell pressed"* — logged with a photo and time. |
+| You missed it all | Open **Alerts** to browse every visit, or **Live** to check right now. |
+| Too many (or too few) alerts | Nudge the sliders in **Settings** — no restart needed. |
 
-## Install the Android app
-Build it once (`cd app && flutter build apk --release`), then copy it where the
-hub serves it:
+## Your privacy, in plain English
 
-```bash
-cp app/build/app/outputs/flutter-apk/app-release.apk data/downloads/
-```
+- 📵 **Nothing leaves your home.** Video is watched and stored on your own computer — not sent to us or anyone else.
+- 🗑️ **You're in charge.** Delete any photo or clear the whole history anytime, in one tap.
+- 👁️ **No tracking.** There are no ads, no analytics, no accounts.
+- 🏠 **Works without internet.** As long as your home WiFi is up, DoorbellCam works — even if your internet is down. (Optional phone alerts away from home need a free secure tunnel — see the technical guide.)
 
-The dashboard header gets a "📱 Get the app" button that downloads
-`http://<hub-ip>:8765/downloads/app-release.apk` — open it on a phone and
-Android offers to install it.
+## Questions, answered
 
-## How auto-discovery works
-1. **Camera → hub:** firmware advertises `doorbellcam.local` (mDNS `_doorbellcam._tcp`).
-   Hub tries mDNS browse → parallel HTTP probe of the /24 for `/api/whoami` → `.env` fallback.
-2. **App → hub:** hub advertises `doorbellhub.local` (mDNS `_doorbellhub._http._tcp`).
-   App uses Bonsoir (mDNS) → subnet probe for `/api/hub-info` → manual entry (remembered).
+**Do I need to pay anything?**
+No. There are no subscriptions or cloud fees — ever.
 
-## Remote access (away from home)
-Zero-config with Tailscale: install on the PC running the hub and on your phone, then the
-app reaches the hub over the tailnet. Notifications use the same persistent WebSocket.
+**Does it work when I'm away from home?**
+At home, everything works out of the box. To get alerts while you're out,
+install a free secure connector (we recommend Tailscale) on your computer
+and phone — it takes a few minutes and is covered in the technical guide.
 
-## FCM (optional cloud push)
-Off by default. Run `python scripts/enable_fcm.py` and follow the printed steps
-(create a Firebase project, add an Android app, place `google-services.json` and a
-service-account JSON). The backend reads it automatically on next restart.
+**What if the power goes out?**
+Plug everything back in. The camera and home base find each other again on
+their own within a minute or so.
 
-## Docker (any OS)
-Set `CAM_IP=<camera-ip>` in `.env`, stop any natively-running hub (port 8765 clash), then:
+**Can it learn my dog / name my kids / ignore the street?**
+It recognizes human faces you enroll, and you can tune how sensitive it is
+and how often it alerts you in **Settings**. Point the camera at your porch
+(not the street) for the calmest experience.
 
-```bash
-docker compose up --build -d
-```
+**I see "Camera offline." What do I do?**
+Check that the little camera has power and your WiFi is up. It usually
+reconnects by itself. Still stuck? The [troubleshooting table](docs/TECHNICAL.md#9-troubleshooting)
+walks through fixes in order.
 
-Bridge networking publishes 8765 to the host; container mDNS cannot see the LAN, so
-`CAM_IP` is how the container finds the camera (tried first when set). `data/` and
-`tools/models` are mounted, so events and the phone-app download route work as natively.
-Stop it with `docker compose down` and start the native hub again to switch back.
+**Where is the nerdy stuff?**
+Glad you asked — full setup, configuration, phone-app builds, remote access,
+and the complete app reference live here:
 
-## Privacy
-Video never leaves your network. Events and face encodings stay in `data/` on your machine.
+- 🔧 [Technical guide](docs/TECHNICAL.md) — installation, settings, troubleshooting
+- 🔌 [App reference](docs/API.md) — every feature the app and dashboard can use
+- 📱 [Phone app notes](app/README.md) — building and installing the Android app
+
+---
+
+*Built with care for households that want smart-home convenience without
+giving up their privacy. Your door, your data.*

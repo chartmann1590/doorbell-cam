@@ -1,3 +1,9 @@
+/* Global dashboard theme: Tailwind base + shared component classes.
+ *
+ * `.card` is the standard panel, `.btn*` are action variants (primary /
+ * ghost / danger), `.input` styles form fields, and `.chip` renders status
+ * pills (camera online, Live, event kinds). Dark ink palette with a sky
+ * accent; scrollbars are slimmed to match. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

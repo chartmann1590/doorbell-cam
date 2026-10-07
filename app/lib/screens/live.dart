@@ -1,3 +1,9 @@
+/// Live tab: MJPEG doorbell stream + real-time person/face alerts.
+///
+/// Polls `/api/status` every 3 s for the camera-online badge and person
+/// count, renders the stream via [MjpegView], and subscribes to the hub's
+/// WebSocket alert stream — each alert raises a system notification through
+/// [Notify] plus an in-app snackbar with an optional snapshot preview.
 import 'dart:async';
 
 import 'package:flutter/material.dart';

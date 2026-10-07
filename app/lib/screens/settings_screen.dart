@@ -1,3 +1,10 @@
+/// Settings tab: detection tuning + live camera-sensor controls.
+///
+/// Detection sliders (`motion_sensitivity`, `cooldown_seconds`,
+/// `person_confidence`, `face_match_threshold`) POST to `/api/settings` and
+/// persist in the hub's SQLite store. Camera sliders/toggles proxy straight
+/// through to the ESP32 sensor via `/api/camera/control`. Values load once
+/// on entry; hub discovery notes at the bottom explain auto-connection.
 import 'package:flutter/material.dart';
 
 import '../hub_client.dart';

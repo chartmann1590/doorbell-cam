@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 /// Minimal MJPEG viewer: reads the multipart stream and shows JPEG frames.
+///
+/// [MjpegView] opens `GET <url>` (the hub's `/api/camera/stream` fan-out),
+/// scans the byte buffer for SOI (`FF D8`) / EOI (`FF D9`) markers, renders
+/// the newest complete JPEG via `Image.memory`, and shows a retry affordance
+/// if the stream ends before any frame arrives. Restarts on URL change.
 class MjpegView extends StatefulWidget {
   final String url;
 

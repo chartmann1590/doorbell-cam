@@ -1,3 +1,12 @@
+/**
+ * Live page: MJPEG stream, recognition list, and recent-event side panel.
+ *
+ * Shows the camera feed via <MjpegStream /> with an offline overlay + manual
+ * retry, the current motion % / person count from /api/status, named faces
+ * in view, and the 8 latest events (auto-refreshed every 5 s and whenever a
+ * new detection lands). A red badge overlays the video while a person is
+ * in frame.
+ */
 import { useEffect, useState } from 'react'
 import { api, HubStatus, EventItem } from '../api'
 import MjpegStream from '../components/MjpegStream'

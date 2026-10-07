@@ -1,3 +1,13 @@
+/**
+ * Settings page: camera-sensor controls + hub detection tuning.
+ *
+ * Left card proxies CameraWebServer-compatible vars (resolution, quality,
+ * brightness/contrast/saturation, effects, flips, auto-modes) live to the
+ * ESP32 via POST /api/camera/control. Right card tunes hub-side detection
+ * (motion sensitivity, cooldown, person confidence, face threshold —
+ * debounced 400 ms to /api/settings) plus WebSocket/FCM notification
+ * toggles, with an explainer of hub↔camera auto-discovery.
+ */
 import { useEffect, useRef, useState } from 'react'
 import { api, HubStatus } from '../api'
 

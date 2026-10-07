@@ -1,6 +1,10 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
 /// Foreground/local notifications for hub alerts.
+///
+/// [Notify.init] wires `flutter_local_notifications` with the app launcher
+/// icon and requests the Android 13+ runtime permission. [Notify.showAlert]
+/// posts a high-priority `doorbell_alerts` channel notification so person /
+/// face / doorbell events surface even when the app is backgrounded.
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 class Notify {
   static final _plugin = FlutterLocalNotificationsPlugin();
 

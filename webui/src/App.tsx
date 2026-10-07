@@ -1,3 +1,12 @@
+/**
+ * Root dashboard shell: tab navigation, live status polling, and alerts.
+ *
+ * Polls GET /api/status every 2 s for the camera-online badge, holds a
+ * persistent /api/ws WebSocket (auto-reconnect) that surfaces person/face/
+ * doorbell detections as toast popups, and switches between the Live,
+ * Events, Faces and Settings pages. The header also links the installable
+ * Android APK served from /downloads/app-release.apk.
+ */
 import { useEffect, useRef, useState } from 'react'
 import { api, HubStatus, EventItem } from './api'
 import Dashboard from './pages/Dashboard'

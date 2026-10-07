@@ -1,3 +1,9 @@
+/// DoorbellCam companion app — entry point.
+///
+/// Shows [ConnectGate] first (auto-discovers the hub via mDNS / subnet
+/// scan, with manual entry as fallback), then [HomeShell] with the three
+/// main tabs: Live, Alerts, Settings. Notifications are initialized without
+/// blocking first paint so the app never stalls on the permission dialog.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
