@@ -29,7 +29,10 @@ tuning_lock = threading.Lock()
 tuning: dict = {
     "motion_sensitivity": 25,   # 0..100, higher = more sensitive
     "cooldown_seconds": 15,
-    "person_confidence": 0.5,
+    # 0.7: MobileNet-SSD's false-positive band on this scene measured
+    # 0.50-0.57 (static vertical objects, 33 bogus events in one evening);
+    # real close-range persons score ~0.9. Tunable via the settings sliders.
+    "person_confidence": 0.7,
     "face_match_threshold": 0.42,
     "notify_websocket": True,
     "notify_fcm": True,
