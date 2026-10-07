@@ -69,9 +69,9 @@ export default function App() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <header className="flex items-center gap-4 border-b border-ink-700 bg-ink-900/90 px-6 py-3 backdrop-blur">
+      <header className="flex items-center gap-4 border-b border-ink-700 bg-ink-900/90 px-6 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-indigo-600 text-lg shadow-lg shadow-accent-500/20">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-linear-to-br from-accent-500 to-indigo-600 text-lg shadow-lg shadow-accent-500/20">
             🔔
           </div>
           <div>
@@ -127,7 +127,7 @@ export default function App() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-20 right-6 z-50 w-80 animate-[slidein_.3s_ease] rounded-2xl border border-accent-500/30 bg-ink-850/95 p-4 shadow-2xl shadow-black/50 backdrop-blur">
+        <div className="fixed bottom-20 right-6 z-50 w-80 animate-[slidein_.3s_ease] rounded-2xl border border-accent-500/30 bg-ink-850/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-sm">
           <div className="flex items-start gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-500/15 text-lg">🚨</div>
             <div className="min-w-0">

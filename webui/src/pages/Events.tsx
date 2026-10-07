@@ -65,7 +65,7 @@ export default function Events({ onOpenFaces }: { onOpenFaces: () => void }) {
               onClick={() => setZoom(ev)}
               className="card group overflow-hidden text-left transition-transform hover:-translate-y-0.5"
             >
-              <div className="relative aspect-[4/3] bg-ink-800">
+              <div className="relative aspect-4/3 bg-ink-800">
                 {ev.snapshot ? (
                   <img
                     src={api.eventSnapshotUrl(ev.id)}
