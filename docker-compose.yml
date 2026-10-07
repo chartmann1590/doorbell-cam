@@ -5,11 +5,13 @@ services:
       dockerfile: server/Dockerfile
     container_name: doorbellhub
     restart: unless-stopped
-    # mDNS multicast only works with host networking (Linux). On Windows/macOS
-    # Docker Desktop cannot do multicast — run the hub natively there instead,
-    # or rely on CAM_IP in .env for manual camera connection.
-    network_mode: host
+    # Bridge networking: container mDNS/subnet-scan cannot see the LAN, so
+    # set CAM_IP in .env to the camera's address — discovery pins it first.
+    # The hub's own mDNS advertises on the docker VM address only; phones
+    # reach the hub through the published port below instead.
+    ports:
+      - "8765:8765"
     env_file: .env
     volumes:
-      - ./data:/hub/data          # events, snapshots, sqlite db
+      - ./data:/hub/data          # events, snapshots, sqlite db, downloads/ (APK route)
       - ./tools/models:/hub/tools/models:ro

@@ -72,10 +72,17 @@ Off by default. Run `python scripts/enable_fcm.py` and follow the printed steps
 (create a Firebase project, add an Android app, place `google-services.json` and a
 service-account JSON). The backend reads it automatically on next restart.
 
-## Docker (Linux/NAS deployment)
-`docker compose up --build` — uses `network_mode: host` so mDNS works. On Windows, run the
-hub natively (Docker Desktop's VM cannot participate in LAN multicast; subnet-scan discovery
-still works from a container but mDNS does not).
+## Docker (any OS)
+Set `CAM_IP=<camera-ip>` in `.env`, stop any natively-running hub (port 8765 clash), then:
+
+```bash
+docker compose up --build -d
+```
+
+Bridge networking publishes 8765 to the host; container mDNS cannot see the LAN, so
+`CAM_IP` is how the container finds the camera (tried first when set). `data/` and
+`tools/models` are mounted, so events and the phone-app download route work as natively.
+Stop it with `docker compose down` and start the native hub again to switch back.
 
 ## Privacy
 Video never leaves your network. Events and face encodings stay in `data/` on your machine.

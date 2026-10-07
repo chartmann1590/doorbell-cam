@@ -1,0 +1,12 @@
+# Only webui/ and server/ are COPYed into the image; everything else is
+# mounted at runtime (data/, tools/models) or unrelated — keep the build
+# context small (tools/ alone is a multi-GB toolchain).
+*
+!server/
+!webui/
+webui/node_modules
+webui/dist
+webui/tsconfig.app.tsbuildinfo
+**/__pycache__
+**/*.pyc
+server/.venv

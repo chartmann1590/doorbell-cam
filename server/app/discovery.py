@@ -90,7 +90,16 @@ def _valid_ipv4(candidate) -> Optional[str]:
 
 
 def discover_camera(allow_subnet_scan: bool = True) -> Optional[str]:
-    """Return camera base IP, trying mDNS, then subnet scan, then .env."""
+    """Return camera base IP.
+
+    A pinned CAM_IP (.env) is tried first: the Dockerized hub runs on a
+    bridge network where LAN mDNS and the /24 scan cannot see the camera,
+    so an explicit address must win immediately."""
+    if settings.CAM_IP:
+        if _whoami_ok(settings.CAM_IP):
+            log.info("Using pinned CAM_IP %s", settings.CAM_IP)
+            return settings.CAM_IP
+
     # 1) mDNS
     try:
         zc = Zeroconf()
